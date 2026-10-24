@@ -4,6 +4,7 @@ import { Controls, type SortKey } from './components/Controls';
 import { ModeBlock } from './components/ModeBlock';
 import { TripDetail } from './components/TripDetail';
 import { holidayName } from './data/holidays';
+import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { usePersistent } from './hooks/usePersistent';
 import { evaluateAlerts, hitKey, notify } from './lib/alerts';
 import { addDays, formatDay, localDate, weekday } from './lib/dates';
@@ -75,6 +76,8 @@ export default function App() {
   const [selected, setSelected] = useState<{ mode: TripMode; destination: string; tripId: string } | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [tab, setTab] = usePersistent<TripMode>('td.tab', 'weekend');
+  const installer = useInstallPrompt();
+  const [installHelp, setInstallHelp] = useState(false);
   const today = localDate(now);
   const searchedAt = useRef(now);
 
@@ -209,6 +212,15 @@ export default function App() {
           </div>
           <span className="board-date">{formatDay(today)}</span>
           <div className="board-actions">
+            {!installer.installed && (
+              <button
+                className="btn ghost install"
+                onClick={() => (installer.canPrompt ? installer.install() : setInstallHelp(true))}
+                title="Installa come app sul telefono"
+              >
+                📲 <span className="label">Installa</span>
+              </button>
+            )}
             <button className="btn ghost" onClick={surprise} disabled={!ready} title="Una meta a caso tra le più convenienti">
               🎲 <span className="label">Sorprendimi</span>
             </button>
@@ -292,6 +304,25 @@ export default function App() {
           onBaggage={(baggage) => update({ baggage })}
           onWatch={() => toggleWatch(selectedResult)}
         />
+      )}
+
+      {installHelp && (
+        <div className="toast" role="dialog" aria-label="Come installare l'app">
+          <button className="icon-btn close-toast" onClick={() => setInstallHelp(false)} aria-label="Chiudi">
+            ✕
+          </button>
+          <b>📲 Installa Partenze Milano</b>
+          {installer.ios ? (
+            <p>
+              In Safari tocca <b>Condividi</b> (il quadrato con la freccia) e poi <b>Aggiungi alla schermata Home</b>.
+            </p>
+          ) : (
+            <p>
+              Apri la pagina in <b>Chrome</b> (se sei dentro un'altra app: menu <b>⋮</b> → <b>Apri in Chrome</b>), poi menu{' '}
+              <b>⋮</b> → <b>Installa app</b> o <b>Aggiungi a schermata Home</b>.
+            </p>
+          )}
+        </div>
       )}
 
       {alertsOpen && (

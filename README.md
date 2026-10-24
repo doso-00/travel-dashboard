@@ -5,6 +5,10 @@ divisi in blocchi per tipo di viaggio e ordinati per prezzo.
 
 Online: **https://doso-00.github.io/travel-dashboard/** (GitHub Pages dal branch `gh-pages`, aggiornato ogni 3 ore).
 
+**Installala come app** (PWA): su Android apri il link in Chrome → menu ⋮ → *Installa app*
+(o il pulsante 📲 nella dashboard); su iPhone in Safari → *Condividi* → *Aggiungi alla schermata Home*.
+Si apre a schermo intero e funziona anche offline con gli ultimi prezzi scaricati.
+
 ```bash
 npm install
 npm run dev      # http://localhost:5173

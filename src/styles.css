@@ -1433,6 +1433,32 @@ button.link {
   text-align: center;
 }
 
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(440px, calc(100% - 32px));
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.5);
+  padding: 14px 44px 14px 16px;
+  animation: rise 0.2s ease;
+}
+
+.toast p {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+}
+
+.close-toast {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
 /* ---------- Mobile ---------- */
 
 @media (max-width: 760px) {
@@ -1509,7 +1535,16 @@ button.link {
   }
 
   .board-brand h1 {
-    font-size: 1.35rem;
+    font-size: 1.15rem;
+    white-space: nowrap;
+  }
+
+  .board-actions {
+    gap: 6px;
+  }
+
+  .board-actions .btn {
+    padding: 7px 10px;
   }
 
   .board-right {
@@ -1568,5 +1603,11 @@ button.link {
   .ticket::before,
   .ticket::after {
     right: calc(92px - var(--notch));
+  }
+}
+
+@media (max-width: 400px) {
+  .board .logo {
+    display: none;
   }
 }
