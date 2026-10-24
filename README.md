@@ -3,6 +3,8 @@
 Dashboard per trovare i voli più convenienti in partenza da **Malpensa (MXP)**, **Bergamo (BGY)** e **Linate (LIN)**,
 divisi in blocchi per tipo di viaggio e ordinati per prezzo.
 
+Online: https://doso-00.github.io/travel-dashboard/ (GitHub Pages dal branch `gh-pages`).
+
 ```bash
 npm install
 npm run dev      # http://localhost:5173
@@ -39,18 +41,37 @@ Per ogni meta il motore prova tutte le coppie di date, aeroporti e compagnie e t
 - **Extra**: 🎉 ponti e festività in arrivo (incluso Sant'Ambrogio), 🎲 "Sorprendimi", 📅 esportazione su calendario (.ics),
   📤 condivisione, tema chiaro/scuro automatico, layout mobile.
 
-## Dati
+## Dati reali, gratis
 
-L'interfaccia `FlightProvider` (`src/providers/types.ts`) separa la sorgente dei voli dal resto dell'app.
+Il browser non può interrogare direttamente le API delle compagnie (CORS), quindi i prezzi li raccoglie
+**GitHub Actions** (`.github/workflows/update-fares.yml`), gratis sui repository pubblici:
 
-- **Demo** (predefinito): orari e prezzi generati in modo deterministico con le dinamiche tipiche dei voli
-  (giorno della settimana, anticipo, stagione, festività, fascia oraria, promo). Cambiano ogni giorno, quindi medie e alert
-  funzionano come con dati veri. Il link d'acquisto porta comunque al sito reale.
-- **Live Ryanair (beta)**: tariffe pubbliche Ryanair da BGY e MXP, attraverso il proxy di Vite (`/api/ryanair`), quindi solo con
-  `npm run dev` o `npm run preview`. Se non risponde, la dashboard torna alla demo e lo segnala. Per i dati live la media
-  si costruisce salvando ogni giorno il miglior prezzo nel browser.
+1. ogni 3 ore `scripts/update-fares.ts` scarica le tariffe, aggiorna lo storico e invia gli alert;
+2. la dashboard viene ricompilata e pubblicata sul branch `gh-pages` insieme a `data/fares.json`;
+3. la pagina legge quel file statico: niente server, niente CORS, e la media del periodo è calcolata
+   sullo storico vero raccolto run dopo run.
 
-Per aggiungere altre fonti (Amadeus, Duffel, Kiwi Tequila, SerpApi Google Flights…) basta implementare `FlightProvider`.
+Fonti:
+
+- **Ryanair fare finder** (API pubblica non ufficiale) per BGY e MXP. Sempre attiva.
+- **Travelpayouts / Aviasales Data API**: tutte le compagnie e Linate, prezzi in cache delle ultime ~48 ore.
+  Si attiva registrandosi gratis su [travelpayouts.com](https://www.travelpayouts.com) e salvando il token come secret
+  del repository `TRAVELPAYOUTS_TOKEN` (Settings → Secrets and variables → Actions).
+
+Se non arrivano dati reali, la dashboard passa da sola ai dati **demo** (simulati, deterministici) e lo segnala.
+Il selettore "Prezzi reali / Demo" in alto permette di passare dall'una all'altra.
+
+Per lanciare la raccolta a mano: `TZ=Europe/Rome npm run update-fares` (scrive `public/data/fares.json`).
+
+## Alert sul telefono
+
+Gli alert in `config/alerts.json` sono controllati dal workflow anche a dashboard chiusa e inviati con
+[ntfy](https://ntfy.sh): installa l'app ntfy e iscriviti al topic indicato in `ntfyTopic`.
+`"destination": "*"` vale per qualsiasi meta. Gli alert creati nella pagina (♡ e pannello 🔔) restano nel browser
+e notificano mentre la dashboard è aperta.
+
+L'interfaccia `FlightProvider` (`src/providers/types.ts`) separa le fonti dal resto dell'app: per aggiungerne una basta
+implementarla e usarla nello script.
 
 ## Struttura
 
@@ -58,6 +79,8 @@ Per aggiungere altre fonti (Amadeus, Duffel, Kiwi Tequila, SerpApi Google Flight
 src/
   data/        aeroporti, compagnie (bagagli e link), mete, festività
   lib/         date e finestre di viaggio, prezzi, ricerca, alert, link
-  providers/   demo e Ryanair
+  providers/   demo, prezzi reali (fares.json), Ryanair, Travelpayouts
+scripts/       raccolta prezzi e alert (GitHub Actions)
+config/        alert lato server
   components/  blocchi, biglietti, dettaglio, filtri, alert
 ```
