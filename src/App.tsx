@@ -12,6 +12,7 @@ import { MODES } from './lib/modes';
 import { formatEur } from './lib/pricing';
 import { applyFilters, computeAverages, groupByDestination, recordSnapshots, searchMode } from './lib/search';
 import { load, save } from './lib/storage';
+import { matchesQuery } from './lib/text';
 import { demoProvider } from './providers/demo';
 import { liveProvider, resetLiveCache } from './providers/live';
 import type { FlightProvider } from './providers/types';
@@ -78,6 +79,8 @@ export default function App() {
   const [tab, setTab] = usePersistent<TripMode>('td.tab', 'weekend');
   const installer = useInstallPrompt();
   const [installHelp, setInstallHelp] = useState(false);
+  const [query, setQuery] = useState('');
+  const visible = (mode: TripMode) => applyFilters(grouped[mode] ?? [], mergedPrefs).filter((r) => matchesQuery(r.destination, query));
   const today = localDate(now);
   const searchedAt = useRef(now);
 
@@ -247,11 +250,11 @@ export default function App() {
           </button>
         </div>
 
-        <Controls prefs={mergedPrefs} sort={sort} onChange={update} onSort={setSort} />
+        <Controls prefs={mergedPrefs} sort={sort} query={query} onQuery={setQuery} onChange={update} onSort={setSort} />
 
         <nav className="tabs" role="tablist" aria-label="Tipo di viaggio">
           {MODES.map((m) => {
-            const list = applyFilters(grouped[m.id] ?? [], mergedPrefs);
+            const list = visible(m.id);
             return (
               <button key={m.id} role="tab" aria-selected={tab === m.id} className={tab === m.id ? 'on' : ''} onClick={() => setTab(m.id)}>
                 <span className="tab-title">
@@ -280,7 +283,8 @@ export default function App() {
           now={now}
           prefs={mergedPrefs}
           status={data[tab] ? 'ready' : 'loading'}
-          results={sortResults(applyFilters(grouped[tab] ?? [], mergedPrefs), sort)}
+          results={sortResults(visible(tab), sort)}
+          query={query}
           isWatched={isWatched}
           onOpen={open}
           onWatch={toggleWatch}

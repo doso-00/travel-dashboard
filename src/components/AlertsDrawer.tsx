@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DESTINATIONS, DESTINATION_BY_CODE } from '../data/destinations';
 import { ANY_DESTINATION, notify, requestNotificationPermission } from '../lib/alerts';
 import { MODES, MODE_BY_ID } from '../lib/modes';
 import { formatEur } from '../lib/pricing';
 import type { AlertHit, DestinationResult, PriceAlert, TripMode } from '../types';
 import { DealBadge } from './DealBadge';
+import { DestinationPicker, type DestinationOption } from './DestinationPicker';
 
 interface Props {
   alerts: PriceAlert[];
@@ -20,11 +21,22 @@ interface Props {
 
 export function AlertsDrawer(props: Props) {
   const { alerts, hits, results, ntfyTopic, onNtfyTopic, onAdd, onRemove, onOpen, onClose } = props;
-  const [dest, setDest] = useState(DESTINATIONS[0].code);
+  const [dest, setDest] = useState(ANY_DESTINATION);
   const [mode, setMode] = useState<TripMode | 'any'>('any');
   const [maxPrice, setMaxPrice] = useState('');
   const [dropPct, setDropPct] = useState('20');
   const [permission, setPermission] = useState(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
+
+  // Catalogo + mete scoperte dai prezzi reali, con il prezzo più basso del momento.
+  const destinationOptions = useMemo(() => {
+    const byCode = new Map<string, DestinationOption>(DESTINATIONS.map((d) => [d.code, { destination: d }]));
+    for (const r of results) {
+      const current = byCode.get(r.destination.code);
+      const price = Math.min(current?.price ?? Infinity, r.best.cost.perPax);
+      byCode.set(r.destination.code, { destination: r.destination, price });
+    }
+    return [...byCode.values()].sort((a, b) => a.destination.city.localeCompare(b.destination.city, 'it'));
+  }, [results]);
 
   const bestFor = (a: PriceAlert) =>
     results
@@ -52,18 +64,9 @@ export function AlertsDrawer(props: Props) {
         <section className="panel">
           <h4>Nuovo alert</h4>
           <div className="form-grid">
-            <label>
+            <label className="span-2">
               Meta
-              <select value={dest} onChange={(e) => setDest(e.target.value)}>
-                <option value={ANY_DESTINATION}>🌍 Qualsiasi meta</option>
-                {[...DESTINATIONS]
-                  .sort((a, b) => a.city.localeCompare(b.city))
-                  .map((d) => (
-                    <option key={d.code} value={d.code}>
-                      {d.flag} {d.city}
-                    </option>
-                  ))}
-              </select>
+              <DestinationPicker value={dest} options={destinationOptions} onChange={setDest} />
             </label>
             <label>
               Quando
@@ -90,7 +93,8 @@ export function AlertsDrawer(props: Props) {
           </button>
           <p className="small muted">
             Scatta quando il prezzo (bagaglio scelto incluso) scende sotto la soglia o sotto la media degli ultimi 60 giorni della
-            percentuale indicata. Con la dashboard aperta il controllo si ripete ogni 30 minuti.
+            percentuale indicata. Gli alert creati qui si controllano con l'app aperta (ogni 30 minuti); quelli in{' '}
+            <code>config/alerts.json</code> arrivano su ntfy anche ad app chiusa.
           </p>
         </section>
 

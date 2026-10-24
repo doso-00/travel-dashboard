@@ -11,6 +11,7 @@ interface Props {
   results: DestinationResult[];
   status: 'loading' | 'ready';
   prefs: Prefs;
+  query: string;
   now: Date;
   isWatched: (destination: string) => boolean;
   onOpen: (r: DestinationResult) => void;
@@ -19,7 +20,7 @@ interface Props {
 
 const PAGE = 8;
 
-export function ModeBlock({ mode, results, status, prefs, now, isWatched, onOpen, onWatch }: Props) {
+export function ModeBlock({ mode, results, status, prefs, query, now, isWatched, onOpen, onWatch }: Props) {
   const [expanded, setExpanded] = useState(false);
   const meta = MODE_BY_ID[mode];
   const visible = expanded ? results : results.slice(0, PAGE);
@@ -52,9 +53,11 @@ export function ModeBlock({ mode, results, status, prefs, now, isWatched, onOpen
         </div>
       ) : results.length === 0 ? (
         <p className="empty">
-          {mode === 'flash'
-            ? 'Nessun volo utile oggi con questi filtri: guarda il blocco Weekend o allarga il budget.'
-            : 'Nessuna meta con questi filtri. Prova ad allargare budget, mood o aeroporti.'}
+          {query
+            ? `Nessun volo diretto per "${query}" in questo blocco: prova gli altri tab o un altro aeroporto.`
+            : mode === 'flash'
+              ? 'Nessun volo utile oggi con questi filtri: guarda il blocco Weekend o allarga il budget.'
+              : 'Nessuna meta con questi filtri. Prova ad allargare budget, mood o aeroporti.'}
         </p>
       ) : (
         <>

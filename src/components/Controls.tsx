@@ -8,6 +8,8 @@ export type SortKey = 'price' | 'deal' | 'date';
 interface Props {
   prefs: Prefs;
   sort: SortKey;
+  query: string;
+  onQuery: (q: string) => void;
   onChange: (patch: Partial<Prefs>) => void;
   onSort: (s: SortKey) => void;
 }
@@ -23,7 +25,7 @@ function toggle<T>(list: T[], item: T): T[] {
 }
 
 /** Filtri principali sempre visibili; il resto in un pannello che si apre a richiesta. */
-export function Controls({ prefs, sort, onChange, onSort }: Props) {
+export function Controls({ prefs, sort, query, onQuery, onChange, onSort }: Props) {
   const [open, setOpen] = useState(false);
   const extra =
     (prefs.pax > 1 ? 1 : 0) +
@@ -37,6 +39,14 @@ export function Controls({ prefs, sort, onChange, onSort }: Props) {
   return (
     <section className="controls" aria-label="Filtri">
       <div className="toolbar">
+        <input
+          type="search"
+          className="search"
+          placeholder="🔎 Cerca una meta (es. Sofia, Grecia, LIS)"
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          aria-label="Cerca una meta"
+        />
         <div className="chips" role="group" aria-label="Aeroporti di partenza">
           {ORIGIN_CODES.map((code) => (
             <button
