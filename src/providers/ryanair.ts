@@ -5,8 +5,8 @@ import type { DateWindow, Flight, OriginCode, TripOption } from '../types';
 import type { FlightProvider } from './types';
 
 // Tariffe pubbliche Ryanair (fare finder): restituiscono il prezzo A/R più
-// basso per ogni meta dato un intervallo di date. Passano dal proxy Vite
-// (/api/ryanair), quindi funzionano con `npm run dev` o `npm run preview`.
+// basso per ogni meta dato un intervallo di date. Il browser non può
+// chiamarle (CORS): le usa lo script `scripts/update-fares.ts` su GitHub Actions.
 
 const DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 // Ryanair non vola da Linate.
@@ -63,17 +63,21 @@ function destinationCode(leg: FareLeg): string {
   return iata;
 }
 
-/** Raggruppa le finestre per (giorno di partenza, notti): una richiesta per gruppo. */
+/**
+ * Raggruppa le finestre per giorno di partenza e notti: una richiesta per
+ * gruppo. L'API restituisce solo la data più economica per meta, quindi i
+ * weekend si chiedono uno per uno e gli altri viaggi mese per mese.
+ */
 function groups(windows: DateWindow[]): DateWindow[][] {
   const map = new Map<string, DateWindow[]>();
   for (const w of windows) {
-    const key = `${weekday(w.out)}-${w.nights}`;
+    const key = `${weekday(w.out)}-${w.nights}-${w.mode === 'weekend' ? w.out : w.out.slice(0, 7)}`;
     map.set(key, [...(map.get(key) ?? []), w]);
   }
   return [...map.values()];
 }
 
-async function fetchGroup(origin: OriginCode, group: DateWindow[], timeFrom: string): Promise<FareResponse> {
+async function fetchGroup(baseUrl: string, origin: OriginCode, group: DateWindow[], timeFrom: string): Promise<FareResponse> {
   const outs = group.map((w) => w.out).sort();
   const backs = group.map((w) => w.back).sort();
   const params = new URLSearchParams({
@@ -91,24 +95,45 @@ async function fetchGroup(origin: OriginCode, group: DateWindow[], timeFrom: str
     market: 'it-it',
     language: 'it',
   });
-  const res = await fetch(`/api/ryanair/farfnd/v4/roundTripFares?${params}`);
-  if (!res.ok) throw new Error(`Ryanair ${res.status}`);
+  const res = await fetch(`${baseUrl}/farfnd/v4/roundTripFares?${params}`, {
+    headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 (partenze-milano)' },
+  });
+  if (!res.ok) throw new Error(`Ryanair ${res.status} ${(await res.text()).slice(0, 120)}`);
   return res.json();
 }
 
-export const ryanairProvider: FlightProvider = {
+/** Esegue i job al massimo `limit` alla volta, per non martellare l'API. */
+async function settleWithLimit<T>(jobs: (() => Promise<T>)[], limit: number): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(jobs.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < jobs.length) {
+      const i = next++;
+      try {
+        results[i] = { status: 'fulfilled', value: await jobs[i]() };
+      } catch (reason) {
+        results[i] = { status: 'rejected', reason };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, jobs.length) }, worker));
+  return results;
+}
+
+export const createRyanairProvider = (baseUrl = 'https://services-api.ryanair.com'): FlightProvider => ({
   id: 'ryanair',
-  label: 'Live Ryanair',
+  label: 'Ryanair',
 
   async search(mode, windows, ctx) {
     const origins = RYANAIR_ORIGINS.filter((o) => ctx.origins.includes(o));
     const nowLocal = localDateTime(ctx.now);
-    const requests = origins.flatMap((origin) =>
-      groups(windows).map(async (group) => {
+    const jobs = origins.flatMap((origin) =>
+      groups(windows).map((group) => async () => {
         let timeFrom = '00:00';
-        if (mode === 'flash') timeFrom = addMinutes(nowLocal, ORIGINS[origin].bufferMin).slice(11);
+        if (ctx.outboundTimeFrom) timeFrom = ctx.outboundTimeFrom;
+        else if (mode === 'flash') timeFrom = addMinutes(nowLocal, ORIGINS[origin].bufferMin).slice(11);
         else if (mode === 'weekend' && ctx.afterWork && weekday(group[0].out) === 5) timeFrom = '17:00';
-        const data = await fetchGroup(origin, group, timeFrom);
+        const data = await fetchGroup(baseUrl, origin, group, timeFrom);
         return (data.fares ?? []).map((f): TripOption => {
           const outbound = toFlight(f.outbound, origin === 'MXP' ? 'T1' : undefined);
           const inbound = toFlight(f.inbound);
@@ -127,11 +152,11 @@ export const ryanairProvider: FlightProvider = {
         });
       }),
     );
-    const settled = await Promise.allSettled(requests);
+    const settled = await settleWithLimit(jobs, 4);
     const ok = settled.filter((s): s is PromiseFulfilledResult<TripOption[]> => s.status === 'fulfilled');
-    if (requests.length && !ok.length) {
+    if (jobs.length && !ok.length) {
       throw (settled[0] as PromiseRejectedResult).reason;
     }
     return ok.flatMap((s) => s.value);
   },
-};
+});

@@ -12,7 +12,7 @@ import { formatEur } from './lib/pricing';
 import { applyFilters, computeAverages, groupByDestination, recordSnapshots, searchMode } from './lib/search';
 import { load, save } from './lib/storage';
 import { demoProvider } from './providers/demo';
-import { ryanairProvider } from './providers/ryanair';
+import { liveProvider, resetLiveCache } from './providers/live';
 import type { FlightProvider } from './providers/types';
 import type { DestinationResult, PriceAlert, Prefs, PricedTrip, TripMode, TripOption } from './types';
 
@@ -26,10 +26,10 @@ const DEFAULT_PREFS: Prefs = {
   tags: [],
   afterWork: false,
   modes: ['flash', 'weekend', 'long-weekend', 'week'],
-  provider: 'demo',
+  provider: 'live',
 };
 
-const PROVIDERS: Record<Prefs['provider'], FlightProvider> = { demo: demoProvider, ryanair: ryanairProvider };
+const PROVIDERS: Record<Prefs['provider'], FlightProvider> = { demo: demoProvider, live: liveProvider };
 const RECHECK_MS = 30 * 60_000;
 
 interface ModeData {
@@ -60,7 +60,12 @@ function upcomingHolidays(today: string, days = 120) {
 
 export default function App() {
   const [prefs, setPrefs] = usePersistent<Prefs>('td.prefs', DEFAULT_PREFS);
-  const mergedPrefs = useMemo(() => ({ ...DEFAULT_PREFS, ...prefs }), [prefs]);
+  const mergedPrefs = useMemo(() => {
+    const merged = { ...DEFAULT_PREFS, ...prefs };
+    // Preferenze salvate da versioni precedenti (es. provider "ryanair").
+    if (!(merged.provider in PROVIDERS)) merged.provider = DEFAULT_PREFS.provider;
+    return merged;
+  }, [prefs]);
   const [alerts, setAlerts] = usePersistent<PriceAlert[]>('td.alerts', []);
   const [ntfyTopic, setNtfyTopic] = usePersistent('td.ntfy', '');
   const [sort, setSort] = usePersistent<SortKey>('td.sort', 'price');
@@ -94,6 +99,7 @@ export default function App() {
     const searchNow = new Date();
     const searchDay = localDate(searchNow);
     searchedAt.current = searchNow;
+    resetLiveCache();
     setData({});
     setProviderError(null);
     (async () => {
@@ -214,19 +220,19 @@ export default function App() {
       <main className="content">
         <div className="source-bar">
           <div className="segmented small">
-            <button className={providerId === 'demo' ? 'on' : ''} onClick={() => update({ provider: 'demo' })}>
-              Dati demo
+            <button className={providerId === 'live' ? 'on' : ''} onClick={() => update({ provider: 'live' })}>
+              Prezzi reali
             </button>
-            <button className={providerId === 'ryanair' ? 'on' : ''} onClick={() => update({ provider: 'ryanair' })}>
-              Live Ryanair (beta)
+            <button className={providerId === 'demo' ? 'on' : ''} onClick={() => update({ provider: 'demo' })}>
+              Demo
             </button>
           </div>
           <span className="small muted">
             {providerError
-              ? `Live non disponibile (${providerError}): mostro i dati demo. Il live passa dal proxy di npm run dev / preview e richiede accesso a internet.`
+              ? `Prezzi reali non disponibili (${providerError}): mostro i dati demo.`
               : providerId === 'demo'
                 ? 'Prezzi simulati ma realistici; "Acquista" apre il sito vero con tratta e date già impostate.'
-                : 'Tariffe pubbliche Ryanair da BGY e MXP (gli altri vettori restano esclusi).'}
+                : (liveProvider.describe?.() ?? 'Carico i prezzi reali…')}
           </span>
           <button className="btn ghost small" onClick={() => setRefresh((n) => n + 1)}>
             ↻ Aggiorna

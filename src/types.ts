@@ -56,7 +56,7 @@ export interface TripOption {
   inbound: Flight;
   /** Tariffa base A/R per passeggero, senza bagagli. */
   fare: number;
-  source: 'demo' | 'ryanair';
+  source: 'demo' | 'ryanair' | 'travelpayouts';
 }
 
 export interface DateWindow {
@@ -76,7 +76,7 @@ export interface Prefs {
   tags: Tag[];
   afterWork: boolean;
   modes: TripMode[];
-  provider: 'demo' | 'ryanair';
+  provider: 'demo' | 'live';
 }
 
 export interface CostBreakdown {

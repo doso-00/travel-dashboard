@@ -6,11 +6,15 @@ export interface SearchContext {
   origins: OriginCode[];
   /** Weekend: il venerdì si parte solo dopo le 17. */
   afterWork: boolean;
+  /** Forza l'orario minimo di partenza (HH:mm) invece di calcolarlo da `now`. */
+  outboundTimeFrom?: string;
 }
 
 export interface FlightProvider {
-  id: 'demo' | 'ryanair';
+  id: 'demo' | 'ryanair' | 'travelpayouts' | 'live';
   label: string;
+  /** Stato della fonte da mostrare all'utente (es. ora dell'ultimo aggiornamento). */
+  describe?(): string | null;
   search(mode: TripMode, windows: DateWindow[], ctx: SearchContext): Promise<TripOption[]>;
   /**
    * Miglior tariffa base (A/R) giorno per giorno tra le opzioni date, negli

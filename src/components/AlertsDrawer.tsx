@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DESTINATIONS, DESTINATION_BY_CODE } from '../data/destinations';
-import { notify, requestNotificationPermission } from '../lib/alerts';
+import { ANY_DESTINATION, notify, requestNotificationPermission } from '../lib/alerts';
 import { MODES, MODE_BY_ID } from '../lib/modes';
 import { formatEur } from '../lib/pricing';
 import type { AlertHit, DestinationResult, PriceAlert, TripMode } from '../types';
@@ -28,7 +28,7 @@ export function AlertsDrawer(props: Props) {
 
   const bestFor = (a: PriceAlert) =>
     results
-      .filter((r) => r.destination.code === a.destination && (a.mode === 'any' || r.mode === a.mode))
+      .filter((r) => (a.destination === ANY_DESTINATION || r.destination.code === a.destination) && (a.mode === 'any' || r.mode === a.mode))
       .sort((x, y) => x.best.cost.perPax - y.best.cost.perPax)[0];
 
   const add = () => {
@@ -55,6 +55,7 @@ export function AlertsDrawer(props: Props) {
             <label>
               Meta
               <select value={dest} onChange={(e) => setDest(e.target.value)}>
+                <option value={ANY_DESTINATION}>🌍 Qualsiasi meta</option>
                 {[...DESTINATIONS]
                   .sort((a, b) => a.city.localeCompare(b.city))
                   .map((d) => (
@@ -105,7 +106,7 @@ export function AlertsDrawer(props: Props) {
                 <li key={a.id} className={hit ? 'hit' : ''}>
                   <div>
                     <b>
-                      {d?.flag} {d?.city ?? a.destination}
+                      {a.destination === ANY_DESTINATION ? '🌍 Qualsiasi meta' : `${d?.flag ?? ''} ${d?.city ?? a.destination}`}
                     </b>{' '}
                     <span className="small muted">
                       {a.mode === 'any' ? 'qualsiasi' : MODE_BY_ID[a.mode].title}

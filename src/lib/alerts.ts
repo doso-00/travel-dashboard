@@ -1,12 +1,15 @@
 import type { AlertHit, DestinationResult, PriceAlert } from '../types';
 import { formatEur } from './pricing';
 
+/** Valore di `destination` per un alert valido su qualsiasi meta. */
+export const ANY_DESTINATION = '*';
+
 /** Alert soddisfatti dai risultati correnti (prezzo per persona, bagaglio incluso). */
 export function evaluateAlerts(alerts: PriceAlert[], results: DestinationResult[]): AlertHit[] {
   const hits: AlertHit[] = [];
   for (const alert of alerts) {
     const candidates = results
-      .filter((r) => r.destination.code === alert.destination && (alert.mode === 'any' || r.mode === alert.mode))
+      .filter((r) => (alert.destination === ANY_DESTINATION || r.destination.code === alert.destination) && (alert.mode === 'any' || r.mode === alert.mode))
       .sort((a, b) => a.best.cost.perPax - b.best.cost.perPax);
     for (const result of candidates) {
       const reasons: string[] = [];

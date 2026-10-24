@@ -212,7 +212,7 @@ export function TripDetail(props: Props) {
               <p className="small muted">
                 {trip.source === 'demo'
                   ? 'Prezzi dimostrativi: sul sito della compagnia trovi la tariffa reale per queste date.'
-                  : 'Tariffa live Ryanair: può cambiare fino al pagamento.'}
+                  : 'Prezzo reale rilevato nelle ultime ore: può cambiare fino al pagamento.'}
               </p>
             </div>
 

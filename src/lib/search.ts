@@ -1,35 +1,44 @@
 import { DESTINATION_BY_CODE } from '../data/destinations';
 import type { FlightProvider } from '../providers/types';
 import type { DestinationResult, Prefs, PricedTrip, TripMode, TripOption } from '../types';
-import { tripWindows } from './dates';
+import { addDays, tripWindows } from './dates';
 import { average, dealPct, tripCost } from './pricing';
 import { load, save } from './storage';
 
 const HISTORY_DAYS = 60;
 const SNAPSHOT_KEY = 'td.snapshots';
 
-type Snapshots = Record<string, Record<string, number>>;
+export type History = Record<string, Record<string, number>>;
 
-/**
- * Registra la miglior tariffa di oggi per meta e modalità: con i dati live è
- * così che si costruisce la media del periodo, giorno dopo giorno.
- */
-export function recordSnapshots(results: DestinationResult[], today: string): Snapshots {
-  const snaps = load<Snapshots>(SNAPSHOT_KEY, {});
-  const cutoff = new Date(Date.parse(today) - 120 * 86_400_000).toISOString().slice(0, 10);
+/** Aggiunge la miglior tariffa di oggi per meta e modalità, tenendo gli ultimi 120 giorni. */
+export function mergeHistory(history: History, results: DestinationResult[], today: string): History {
+  const cutoff = addDays(today, -120);
   for (const r of results) {
-    const key = `${r.mode}:${r.destination.code}`;
-    const series = (snaps[key] ??= {});
+    const series = (history[`${r.mode}:${r.destination.code}`] ??= {});
     series[today] = Math.min(series[today] ?? Infinity, r.best.fare);
     for (const day of Object.keys(series)) if (day < cutoff) delete series[day];
   }
+  return history;
+}
+
+/** Serie storica ordinata per data. */
+export function historySeries(history: History, mode: TripMode, destination: string): number[] {
+  const series = history[`${mode}:${destination}`] ?? {};
+  return Object.keys(series).sort().map((d) => series[d]);
+}
+
+/**
+ * Registra nel browser la miglior tariffa di oggi: con i dati live è così
+ * che si costruisce la media del periodo, giorno dopo giorno.
+ */
+export function recordSnapshots(results: DestinationResult[], today: string): History {
+  const snaps = mergeHistory(load<History>(SNAPSHOT_KEY, {}), results, today);
   save(SNAPSHOT_KEY, snaps);
   return snaps;
 }
 
 export function snapshotSeries(mode: TripMode, destination: string): number[] {
-  const series = load<Snapshots>(SNAPSHOT_KEY, {})[`${mode}:${destination}`] ?? {};
-  return Object.keys(series).sort().map((d) => series[d]);
+  return historySeries(load<History>(SNAPSHOT_KEY, {}), mode, destination);
 }
 
 /** Una sola opzione per coppia di date (la prima, cioè la più conveniente nell'ordine dato). */
