@@ -3,7 +3,7 @@
   "baggage": "personal",
   "pax": 1,
   "alerts": [
-    { "id": "ogni-meta-sotto-30", "destination": "*", "mode": "any", "maxPrice": 30, "dropPct": null, "createdAt": "2026-10-24" },
+    { "id": "ogni-meta-sotto-25", "destination": "*", "mode": "any", "maxPrice": 25, "dropPct": null, "createdAt": "2026-10-24" },
     { "id": "ogni-meta-affare-40", "destination": "*", "mode": "any", "maxPrice": null, "dropPct": 40, "createdAt": "2026-10-24" }
   ]
 }

@@ -3,7 +3,9 @@
 Dashboard per trovare i voli più convenienti in partenza da **Malpensa (MXP)**, **Bergamo (BGY)** e **Linate (LIN)**,
 divisi in blocchi per tipo di viaggio e ordinati per prezzo.
 
-Online: https://doso-00.github.io/travel-dashboard/ (GitHub Pages dal branch `gh-pages`).
+Online: **https://raw.githack.com/doso-00/travel-dashboard/gh-pages/index.html** (serve il branch `gh-pages`
+così com'è, senza configurazioni). Per l'indirizzo ufficiale https://doso-00.github.io/travel-dashboard/ basta attivare
+una volta GitHub Pages: Settings → Pages → Source "Deploy from a branch" → `gh-pages` / root.
 
 ```bash
 npm install
@@ -67,6 +69,8 @@ Per lanciare la raccolta a mano: `TZ=Europe/Rome npm run update-fares` (scrive `
 
 Gli alert in `config/alerts.json` sono controllati dal workflow anche a dashboard chiusa e inviati con
 [ntfy](https://ntfy.sh): installa l'app ntfy e iscriviti al topic indicato in `ntfyTopic`.
+Gli alert predefiniti avvisano per qualsiasi meta sotto i 25 € a/r (le vere promo: Ryanair parte da 29,98 €)
+o almeno il 40% sotto la media.
 `"destination": "*"` vale per qualsiasi meta. Gli alert creati nella pagina (♡ e pannello 🔔) restano nel browser
 e notificano mentre la dashboard è aperta.
 
