@@ -61,7 +61,8 @@ async function collect(provider: FlightProvider, modes: TripMode[], now: Date, t
     for (const outboundTimeFrom of slices) {
       const found = await provider.search(mode, windowsFor(mode, today), { ...base, outboundTimeFrom });
       console.log(`  ${provider.label} ${mode}${outboundTimeFrom ? ` dalle ${outboundTimeFrom}` : ''}: ${found.length} tariffe`);
-      trips.push(...found.map((t) => ({ ...t, seenAt: t.seenAt ?? now.toISOString() })));
+      // L'ora di rilevazione vale solo per le tariffe live: quelle in cache hanno la loro (o nessuna).
+      trips.push(...found.map((t) => (t.source === 'ryanair' ? { ...t, seenAt: now.toISOString() } : t)));
     }
   }
   return trips;
