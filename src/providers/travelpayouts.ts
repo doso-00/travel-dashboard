@@ -1,12 +1,13 @@
 import { terminalFor, type OriginAirport } from '../data/airports';
 import { DESTINATION_BY_CODE, destinationForAirport } from '../data/destinations';
-import { addMinutes } from '../lib/dates';
+import { addDays, addMinutes } from '../lib/dates';
 import type { Flight, OriginCode, TripOption } from '../types';
 import type { FlightProvider } from './types';
 
 // Aviasales Data API (Travelpayouts): gratuita con un token personale, copre
 // tutte le compagnie. Sono prezzi in cache trovati dagli utenti Aviasales
-// nelle ultime ~48 ore, quindi alcune date possono mancare.
+// nelle ultime ~48 ore, quindi alcune date possono mancare e sotto data
+// il prezzo cambia troppo in fretta: si usano solo partenze tra 7+ giorni.
 // https://support.travelpayouts.com/hc/en-us/articles/203956163
 
 interface TpTicket {
@@ -22,7 +23,10 @@ interface TpTicket {
   return_transfers?: number;
   duration_to?: number;
   duration_back?: number;
+  found_at?: string;
 }
+
+const MIN_DAYS_AHEAD = 7;
 
 const MILAN: OriginCode[] = ['MXP', 'BGY', 'LIN'];
 
@@ -47,7 +51,7 @@ export const createTravelpayoutsProvider = (token: string): FlightProvider => ({
 
   async search(mode, windows, ctx) {
     const pairs = new Set(windows.map((w) => `${w.out}>${w.back}`));
-    const months = [...new Set(windows.map((w) => w.out.slice(0, 7)))];
+    const months = [...new Set(windows.filter((w) => w.out >= addDays(ctx.today, MIN_DAYS_AHEAD)).map((w) => w.out.slice(0, 7)))];
     const trips: TripOption[] = [];
     for (const month of months) {
       const params = new URLSearchParams({
@@ -71,7 +75,7 @@ export const createTravelpayoutsProvider = (token: string): FlightProvider => ({
         if (!t.return_at || t.transfers || t.return_transfers || !MILAN.includes(origin) || !ctx.origins.includes(origin)) continue;
         const out = t.departure_at.slice(0, 10);
         const back = t.return_at.slice(0, 10);
-        if (!pairs.has(`${out}>${back}`)) continue;
+        if (!pairs.has(`${out}>${back}`) || out < addDays(ctx.today, MIN_DAYS_AHEAD)) continue;
         const d = destinationForAirport(t.destination_airport) ?? DESTINATION_BY_CODE[t.destination];
         if (!d) continue;
         const half = Math.round((t.price / 2) * 100) / 100;
@@ -88,6 +92,7 @@ export const createTravelpayoutsProvider = (token: string): FlightProvider => ({
           inbound,
           fare: t.price,
           source: 'travelpayouts',
+          seenAt: t.found_at,
         });
       }
     }

@@ -62,6 +62,11 @@ export function TripCard({ result, rank, pax, watched, onOpen, onWatch }: Props)
           {formatTime(best.outbound.arrival)} · rientro {formatTime(best.inbound.departure)}
         </p>
         <div className="badges">
+          {best.source === 'travelpayouts' && (
+            <span className="badge indicative" title="Prezzo da ricerche recenti: verificalo sul sito">
+              ≈ indicativo
+            </span>
+          )}
           <DealBadge pct={result.dealPct} />
           {holidays.map((h) => (
             <span key={h} className="badge holiday">

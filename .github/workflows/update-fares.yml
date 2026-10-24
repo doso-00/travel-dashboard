@@ -2,7 +2,8 @@ name: Aggiorna prezzi e pubblica
 
 on:
   schedule:
-    - cron: '17 */3 * * *'
+    # Ogni ora: il Flash si aggiorna sempre, il resto ogni 3 ore.
+    - cron: '17 * * * *'
   workflow_dispatch:
   push:
     branches-ignore: [gh-pages]
@@ -39,7 +40,10 @@ jobs:
       - run: npm test
 
       - name: Scarica i prezzi reali e invia gli alert
-        run: npm run update-fares -- --previous previous/data/fares.json --out public/data/fares.json
+        run: |
+          FLAGS=""
+          if [ "${{ github.event_name }}" = "schedule" ] && [ $(( $(date -u +%-H) % 3 )) -ne 0 ]; then FLAGS="--flash-only"; fi
+          npm run update-fares -- --previous previous/data/fares.json --out public/data/fares.json $FLAGS
         env:
           TRAVELPAYOUTS_TOKEN: ${{ secrets.TRAVELPAYOUTS_TOKEN }}
 

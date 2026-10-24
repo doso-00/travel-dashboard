@@ -29,7 +29,7 @@ function airportName(code: string, result: DestinationResult): string {
   return ORIGINS[code as keyof typeof ORIGINS]?.name ?? result.destination.airports[code] ?? code;
 }
 
-function Leg({ label, flight, result }: { label: string; flight: Flight; result: DestinationResult }) {
+function Leg({ label, flight, result, showFare }: { label: string; flight: Flight; result: DestinationResult; showFare: boolean }) {
   const a = airline(flight.airline);
   const nextDay = flight.arrival.slice(0, 10) !== flight.departure.slice(0, 10);
   return (
@@ -64,19 +64,51 @@ function Leg({ label, flight, result }: { label: string; flight: Flight; result:
         </div>
       </div>
       <div className="pass-foot">
-        <span>
-          Volo <b className="mono">{flight.flightNumber}</b>
-        </span>
+        {flight.flightNumber !== flight.airline && (
+          <span>
+            Volo <b className="mono">{flight.flightNumber}</b>
+          </span>
+        )}
         {flight.terminal && (
           <span>
             Terminal <b className="mono">{flight.terminal}</b>
           </span>
         )}
-        <span>
-          Tariffa <b>{formatEur(flight.fare)}</b>
-        </span>
+        {showFare && (
+          <span>
+            Tariffa <b>{formatEur(flight.fare)}</b>
+          </span>
+        )}
       </div>
     </div>
+  );
+}
+
+function timeAgo(iso: string): string {
+  const min = Math.round((Date.now() - Date.parse(iso)) / 60_000);
+  if (min < 60) return `${Math.max(1, min)} min fa`;
+  const h = Math.round(min / 60);
+  return h < 24 ? `${h} ${h === 1 ? 'ora' : 'ore'} fa` : `${Math.round(h / 24)} giorni fa`;
+}
+
+/** Quanto è affidabile il prezzo mostrato: le low cost cambiano tariffa di continuo. */
+function Freshness({ trip }: { trip: PricedTrip }) {
+  if (trip.source === 'demo') {
+    return <p className="fresh demo">🧪 Prezzo dimostrativo: la tariffa reale la vedi sul sito della compagnia.</p>;
+  }
+  if (trip.source === 'travelpayouts') {
+    return (
+      <p className="fresh indicative">
+        ≈ <b>Prezzo indicativo</b>, trovato in ricerche recenti{trip.seenAt ? ` (${timeAgo(trip.seenAt)})` : ' (fino a 48 ore fa)'}: può essere cambiato o
+        esaurito.
+      </p>
+    );
+  }
+  return (
+    <p className="fresh live">
+      ● <b>Prezzo Ryanair rilevato {trip.seenAt ? timeAgo(trip.seenAt) : 'nelle ultime ore'}</b>. I posti a questo prezzo possono esaurirsi:
+      verifica prima di pagare.
+    </p>
   );
 }
 
@@ -135,8 +167,9 @@ export function TripDetail(props: Props) {
 
         <div className="detail-body">
           <div className="detail-col">
-            <Leg label="Andata" flight={trip.outbound} result={result} />
-            <Leg label="Ritorno" flight={trip.inbound} result={result} />
+            <Freshness trip={trip} />
+            <Leg label="Andata" flight={trip.outbound} result={result} showFare={trip.source !== 'travelpayouts'} />
+            <Leg label="Ritorno" flight={trip.inbound} result={result} showFare={trip.source !== 'travelpayouts'} />
 
             <h4>Bagaglio</h4>
             <div className="bags">
@@ -187,9 +220,6 @@ export function TripDetail(props: Props) {
                   <span>{formatEur(trip.cost.total)}</span>
                 </div>
               )}
-              <a className="btn primary buy" href={booking.url} target="_blank" rel="noreferrer">
-                Acquista su {booking.direct ? a.name : 'Google Flights'} ↗
-              </a>
               <div className="btn-row">
                 <a className="btn" href={googleFlightsUrl(trip, prefs.pax)} target="_blank" rel="noreferrer">
                   Google Flights
@@ -209,11 +239,6 @@ export function TripDetail(props: Props) {
                   {watched ? '♥ Seguito' : '🔔 Avvisami'}
                 </button>
               </div>
-              <p className="small muted">
-                {trip.source === 'demo'
-                  ? 'Prezzi dimostrativi: sul sito della compagnia trovi la tariffa reale per queste date.'
-                  : 'Prezzo reale rilevato nelle ultime ore: può cambiare fino al pagamento.'}
-              </p>
             </div>
 
             <h4>
@@ -239,6 +264,19 @@ export function TripDetail(props: Props) {
             </ul>
           </div>
         </div>
+
+        <footer className="buybar">
+          <div className="buybar-price">
+            <strong>{formatEur(trip.cost.perPax)}</strong>
+            <span className="small muted">
+              a persona{prefs.pax > 1 ? ` · ${formatEur(trip.cost.total)} in ${prefs.pax}` : ''}
+              {trip.cost.baggage ? ' · bagaglio incluso' : ''}
+            </span>
+          </div>
+          <a className="btn primary buy" href={booking.url} target="_blank" rel="noreferrer">
+            Verifica e acquista su {booking.direct ? a.name : 'Google Flights'} ↗
+          </a>
+        </footer>
       </section>
     </div>
   );

@@ -14,7 +14,6 @@ const prefs: Prefs = {
   maxBudget: null,
   tags: [],
   afterWork: false,
-  modes: ['flash', 'weekend', 'long-weekend', 'week'],
   provider: 'demo',
 };
 

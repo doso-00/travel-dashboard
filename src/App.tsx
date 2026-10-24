@@ -25,7 +25,6 @@ const DEFAULT_PREFS: Prefs = {
   maxBudget: null,
   tags: [],
   afterWork: false,
-  modes: ['flash', 'weekend', 'long-weekend', 'week'],
   provider: 'live',
 };
 
@@ -75,6 +74,7 @@ export default function App() {
   const [providerError, setProviderError] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ mode: TripMode; destination: string; tripId: string } | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [tab, setTab] = usePersistent<TripMode>('td.tab', 'weekend');
   const today = localDate(now);
   const searchedAt = useRef(now);
 
@@ -196,7 +196,7 @@ export default function App() {
           <span className="logo">✈</span>
           <div>
             <h1>Partenze · Milano</h1>
-            <p>Malpensa · Bergamo · Linate — le mete più convenienti, ordinate per prezzo</p>
+            <p>Malpensa · Bergamo · Linate — le mete più economiche, ordinate per prezzo</p>
           </div>
         </div>
         <div className="board-right">
@@ -208,40 +208,50 @@ export default function App() {
             ))}
           </div>
           <span className="board-date">{formatDay(today)}</span>
-          <button className="btn ghost" onClick={surprise} disabled={!ready}>
-            🎲 Sorprendimi
-          </button>
-          <button className="btn ghost bell" onClick={() => setAlertsOpen(true)}>
-            🔔 Alert{hits.length > 0 && <span className="count">{hits.length}</span>}
-          </button>
+          <div className="board-actions">
+            <button className="btn ghost" onClick={surprise} disabled={!ready} title="Una meta a caso tra le più convenienti">
+              🎲 <span className="label">Sorprendimi</span>
+            </button>
+            <button className="btn ghost bell" onClick={() => setAlertsOpen(true)}>
+              🔔 <span className="label">Alert</span>
+              {hits.length > 0 && <span className="count">{hits.length}</span>}
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="content">
-        <div className="source-bar">
-          <div className="segmented small">
-            <button className={providerId === 'live' ? 'on' : ''} onClick={() => update({ provider: 'live' })}>
-              Prezzi reali
-            </button>
-            <button className={providerId === 'demo' ? 'on' : ''} onClick={() => update({ provider: 'demo' })}>
-              Demo
-            </button>
-          </div>
-          <span className="small muted">
+        <div className="status small">
+          <span className={`dot ${providerError ? 'warn' : providerId === 'demo' ? 'demo' : 'live'}`} />
+          <span className="muted">
             {providerError
-              ? `Prezzi reali non disponibili (${providerError}): mostro i dati demo.`
+              ? `Prezzi reali non disponibili (${providerError}): dati demo`
               : providerId === 'demo'
-                ? 'Prezzi simulati ma realistici; "Acquista" apre il sito vero con tratta e date già impostate.'
+                ? 'Dati demo: prezzi simulati, cambia fonte in Filtri'
                 : (liveProvider.describe?.() ?? 'Carico i prezzi reali…')}
           </span>
-          <button className="btn ghost small" onClick={() => setRefresh((n) => n + 1)}>
-            ↻ Aggiorna
+          <button className="icon-btn small" onClick={() => setRefresh((n) => n + 1)} aria-label="Aggiorna" title="Aggiorna">
+            ↻
           </button>
         </div>
 
         <Controls prefs={mergedPrefs} sort={sort} onChange={update} onSort={setSort} />
 
-        {holidays.length > 0 && (
+        <nav className="tabs" role="tablist" aria-label="Tipo di viaggio">
+          {MODES.map((m) => {
+            const list = applyFilters(grouped[m.id] ?? [], mergedPrefs);
+            return (
+              <button key={m.id} role="tab" aria-selected={tab === m.id} className={tab === m.id ? 'on' : ''} onClick={() => setTab(m.id)}>
+                <span className="tab-title">
+                  {m.icon} {m.title}
+                </span>
+                <span className="tab-price">{data[m.id] ? (list[0] ? `da ${formatEur(Math.round(list[0].best.cost.perPax))}` : '—') : '…'}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {tab === 'long-weekend' && holidays.length > 0 && (
           <div className="ponti" aria-label="Prossime festività">
             <span className="ponti-title">🎉 Ponti in vista</span>
             {holidays.map((h) => (
@@ -252,31 +262,17 @@ export default function App() {
           </div>
         )}
 
-        <nav className="jump">
-          {MODES.filter((m) => mergedPrefs.modes.includes(m.id)).map((m) => {
-            const list = applyFilters(grouped[m.id] ?? [], mergedPrefs);
-            return (
-              <a key={m.id} href={`#${m.id}`}>
-                {m.icon} {m.title}
-                {list[0] && <b>da {formatEur(Math.round(list[0].best.cost.perPax))}</b>}
-              </a>
-            );
-          })}
-        </nav>
-
-        {MODES.filter((m) => mergedPrefs.modes.includes(m.id)).map((m) => (
-          <ModeBlock
-            key={m.id}
-            mode={m.id}
-            now={now}
-            prefs={mergedPrefs}
-            status={data[m.id] ? 'ready' : 'loading'}
-            results={sortResults(applyFilters(grouped[m.id] ?? [], mergedPrefs), sort)}
-            isWatched={isWatched}
-            onOpen={open}
-            onWatch={toggleWatch}
-          />
-        ))}
+        <ModeBlock
+          key={tab}
+          mode={tab}
+          now={now}
+          prefs={mergedPrefs}
+          status={data[tab] ? 'ready' : 'loading'}
+          results={sortResults(applyFilters(grouped[tab] ?? [], mergedPrefs), sort)}
+          isWatched={isWatched}
+          onOpen={open}
+          onWatch={toggleWatch}
+        />
 
         <footer className="foot small muted">
           Prezzi a persona andata e ritorno, voli diretti. Medie calcolate sugli ultimi 60 giorni. Gli orari sono locali.

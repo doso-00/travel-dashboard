@@ -38,7 +38,7 @@ describe('provider prezzi reali', () => {
     const weekend = await liveProvider.search('weekend', tripWindows('weekend', today, 2), ctx);
     expect(weekend.every((t) => t.outbound.departure < '2026-11-02')).toBe(true);
     expect(liveProvider.history!([weekend.find((t) => t.destination === 'BCN')!], today, 60)).toEqual([50, 40, 30]);
-    expect(liveProvider.describe!()).toContain('Ryanair ✓');
+    expect(liveProvider.describe!()).toMatch(/^Aggiornati alle \d\d:\d\d$/);
   });
 
   it('segnala quando il file non è disponibile', async () => {

@@ -149,6 +149,11 @@ a {
   flex-wrap: wrap;
 }
 
+.board-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .board-date {
   font-family: var(--mono);
   text-transform: uppercase;
@@ -225,29 +230,83 @@ a {
   padding: 18px 16px 48px;
 }
 
-.source-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.source-bar .muted {
-  flex: 1 1 260px;
-}
-
 /* ---------- Controlli ---------- */
 
-.controls {
+.status {
   display: flex;
-  flex-wrap: wrap;
-  gap: 14px 22px;
-  padding: 16px 18px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.status .muted {
+  flex: 1;
+  min-width: 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--deal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--deal) 25%, transparent);
+}
+
+.dot.demo {
+  background: var(--sun);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sun) 25%, transparent);
+}
+
+.dot.warn {
+  background: var(--pricey);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pricey) 25%, transparent);
+}
+
+.icon-btn.small {
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+}
+
+.controls {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.filters-btn {
+  margin-left: auto;
+}
+
+.filters-btn .count {
+  margin-left: 2px;
+}
+
+.filters-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 22px;
+  padding: 14px 16px 16px;
+  border-top: 1px dashed var(--line);
+  animation: fade 0.15s ease;
+}
+
+.panel-foot {
+  flex-direction: row !important;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .control {
@@ -432,41 +491,64 @@ input[type='range'] {
   border-color: transparent;
 }
 
-.jump {
+/* ---------- Tab ---------- */
+
+.tabs {
   position: sticky;
   top: 0;
   z-index: 5;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
-  overflow-x: auto;
   padding: 10px 0;
-  margin: 8px 0 0;
-  background: linear-gradient(var(--paper) 75%, transparent);
-  scrollbar-width: none;
+  margin-top: 4px;
+  background: var(--paper);
 }
 
-.jump a {
-  flex: none;
-  text-decoration: none;
-  color: var(--ink);
+.tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
   border: 1px solid var(--line);
   background: var(--card);
-  padding: 7px 13px;
-  border-radius: 999px;
-  font-size: 0.88rem;
-  font-weight: 600;
+  border-radius: 14px;
+  padding: 9px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
 }
 
-.jump a b {
-  margin-left: 6px;
+.tabs button.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.tab-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.tab-price {
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--accent);
+}
+
+.tabs button.on .tab-price {
+  color: var(--sun);
 }
 
 /* ---------- Blocchi ---------- */
 
 .block {
-  margin-top: 26px;
-  scroll-margin-top: 60px;
+  margin-top: 8px;
 }
 
 .block-head {
@@ -686,6 +768,11 @@ input[type='range'] {
   color: var(--pricey);
 }
 
+.badge.indicative {
+  background: var(--holiday-bg);
+  color: var(--ink);
+}
+
 .badge.holiday {
   background: var(--holiday-bg);
 }
@@ -866,7 +953,8 @@ button.link {
   width: min(980px, 100%);
   background: var(--paper);
   border-radius: 22px;
-  overflow: hidden;
+  /* clip e non hidden: hidden blocca la barra d'acquisto sticky. */
+  overflow: clip;
   box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.5);
   animation: rise 0.2s ease;
 }
@@ -1116,9 +1204,8 @@ button.link {
 }
 
 .buy {
-  padding: 13px;
+  padding: 13px 20px;
   font-size: 1rem;
-  margin-top: 6px;
 }
 
 .spark {
@@ -1199,6 +1286,59 @@ button.link {
 .alt-dates button.on {
   background: var(--card);
   border-color: var(--accent);
+}
+
+.fresh {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.fresh.live {
+  background: var(--deal-bg);
+}
+
+.fresh.live::first-letter {
+  color: var(--deal);
+}
+
+.fresh.indicative,
+.fresh.demo {
+  background: var(--holiday-bg);
+}
+
+.buybar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 24px calc(12px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--line);
+}
+
+.buybar-price {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.buybar-price strong {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1.1;
+}
+
+.buybar .buy {
+  margin: 0 0 0 auto;
+  white-space: nowrap;
 }
 
 /* ---------- Drawer alert ---------- */
@@ -1298,25 +1438,123 @@ button.link {
 @media (max-width: 760px) {
   .detail-body {
     grid-template-columns: 1fr;
-    padding: 18px 16px 22px;
+    gap: 6px;
+    padding: 16px 14px 18px;
   }
 
   .detail-hero {
-    padding: 24px 18px 18px;
+    padding: 18px 16px 14px;
+  }
+
+  .detail-hero h2 {
+    font-size: 2rem;
+    margin-top: 8px;
+  }
+
+  .detail-hero p {
+    font-size: 0.9rem;
+  }
+
+  .hero-facts {
+    margin-top: 10px;
   }
 
   .overlay {
-    padding: 12px 8px;
+    padding: 0;
+  }
+
+  .detail {
+    border-radius: 0;
+    min-height: 100%;
+  }
+
+  .drawer {
+    border-radius: 0;
+    min-height: 100%;
+  }
+
+  .buybar {
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    gap: 10px;
+  }
+
+  .buybar-price strong {
+    font-size: 1.3rem;
+  }
+
+  .buybar .buy {
+    padding: 12px 14px;
+    font-size: 0.92rem;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .board {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    gap: 10px;
+  }
+
+  .board-brand p,
+  .board-date,
+  .flap,
+  .board-actions .label {
+    display: none;
+  }
+
+  .logo {
+    width: 38px;
+    height: 38px;
+    font-size: 1.2rem;
+  }
+
+  .board-brand h1 {
+    font-size: 1.35rem;
   }
 
   .board-right {
-    width: 100%;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .board {
+    flex-wrap: nowrap;
   }
 
   .flap .cell {
-    width: 24px;
-    height: 32px;
-    font-size: 1.1rem;
+    width: 20px;
+    height: 28px;
+    font-size: 0.95rem;
+  }
+
+  .content {
+    padding-top: 12px;
+  }
+
+  .toolbar {
+    gap: 8px;
+  }
+
+  .toolbar .segmented button {
+    padding: 6px 9px;
+  }
+
+  .filters-btn {
+    margin-left: 0;
+  }
+
+  .tabs {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tabs button {
+    flex: none;
+  }
+
+  .block-head h2 {
+    font-size: 1.3rem;
   }
 
   .form-grid {

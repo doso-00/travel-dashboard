@@ -3,6 +3,8 @@
 //
 //   TZ=Europe/Rome npx tsx scripts/update-fares.ts --previous prev.json --out public/data/fares.json
 //
+// Con --flash-only aggiorna solo il blocco Flash (gira ogni ora: i voli di
+// oggi cambiano prezzo ed esauriscono in fretta) e tiene il resto del file.
 // Variabili d'ambiente opzionali: TRAVELPAYOUTS_TOKEN (attiva la seconda fonte).
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -51,15 +53,15 @@ function windowsFor(mode: TripMode, today: string): DateWindow[] {
   return [...tripWindows('flash', today, 0), ...tripWindows('flash', addDays(today, 1), 0)];
 }
 
-async function collect(provider: FlightProvider, now: Date, today: string): Promise<TripOption[]> {
+async function collect(provider: FlightProvider, modes: TripMode[], now: Date, today: string): Promise<TripOption[]> {
   const trips: TripOption[] = [];
-  for (const { id: mode } of MODES) {
+  for (const mode of modes) {
     const base: SearchContext = { now, today, origins: ['MXP', 'BGY', 'LIN'], afterWork: false };
     const slices = mode === 'flash' && provider.id === 'ryanair' ? FLASH_SLICES : [undefined];
     for (const outboundTimeFrom of slices) {
       const found = await provider.search(mode, windowsFor(mode, today), { ...base, outboundTimeFrom });
       console.log(`  ${provider.label} ${mode}${outboundTimeFrom ? ` dalle ${outboundTimeFrom}` : ''}: ${found.length} tariffe`);
-      trips.push(...found);
+      trips.push(...found.map((t) => ({ ...t, seenAt: t.seenAt ?? now.toISOString() })));
     }
   }
   return trips;
@@ -78,16 +80,20 @@ async function main() {
   const previous = readJson<Partial<FaresFile>>(arg('previous'), {});
   const config = readJson<AlertsConfig>(arg('config') ?? 'config/alerts.json', { alerts: [] });
   const out = arg('out') ?? 'public/data/fares.json';
+  const flashOnly = process.argv.includes('--flash-only') && Boolean(previous.trips?.length);
+  const modes: TripMode[] = flashOnly ? ['flash'] : MODES.map((m) => m.id);
+  console.log(flashOnly ? 'Aggiorno solo il blocco Flash' : 'Aggiornamento completo');
 
   const providers: FlightProvider[] = [createRyanairProvider()];
-  if (process.env.TRAVELPAYOUTS_TOKEN) providers.push(createTravelpayoutsProvider(process.env.TRAVELPAYOUTS_TOKEN));
+  // Travelpayouts non serve al Flash: i suoi prezzi in cache sono troppo vecchi per i voli di oggi.
+  if (process.env.TRAVELPAYOUTS_TOKEN && !flashOnly) providers.push(createTravelpayoutsProvider(process.env.TRAVELPAYOUTS_TOKEN));
 
-  const sources: Record<string, SourceStatus> = {};
+  const sources: Record<string, SourceStatus> = flashOnly ? { ...previous.sources } : {};
   let trips: TripOption[] = [];
   for (const provider of providers) {
     console.log(`Fonte ${provider.label}…`);
     try {
-      const found = await collect(provider, now, today);
+      const found = await collect(provider, modes, now, today);
       trips.push(...found);
       sources[provider.label] = { ok: true, trips: found.length };
     } catch (e) {
@@ -97,8 +103,11 @@ async function main() {
     }
   }
   trips = dedupe(trips);
-
   const failedAll = trips.length === 0;
+  if (flashOnly) {
+    trips.push(...previous.trips!.filter((t) => t.mode !== 'flash' && t.outbound.departure.slice(0, 10) > today));
+  }
+
   if (failedAll && previous.trips?.length) {
     // Meglio dati di qualche ora fa che una dashboard vuota.
     console.warn('Nessuna tariffa nuova: tengo quelle precedenti.');
@@ -109,7 +118,7 @@ async function main() {
   const history: History = previous.history ?? {};
   const byMode = (mode: TripMode) => trips.filter((t) => t.mode === mode);
   if (!failedAll) {
-    for (const { id } of MODES) mergeHistory(history, groupByDestination(byMode(id), { baggage: 'personal', pax: 1, includeTransfer: false }, {}), today);
+    for (const id of modes) mergeHistory(history, groupByDestination(byMode(id), { baggage: 'personal', pax: 1, includeTransfer: false }, {}), today);
   }
 
   // Alert lato server: arrivano sul telefono anche a dashboard chiusa.
@@ -124,7 +133,9 @@ async function main() {
     }
     return groupByDestination(modeTrips, prefs, averages);
   });
-  const hits = evaluateAlerts(config.alerts, results).filter((h) => !notified.has(hitKey(h)));
+  // Solo prezzi verificati: quelli in cache di Travelpayouts darebbero falsi allarmi.
+  const verified = results.filter((r) => r.best.source === 'ryanair');
+  const hits = evaluateAlerts(config.alerts, verified).filter((h) => !notified.has(hitKey(h)));
   for (const h of hits) {
     const t = h.result.best;
     const title = `✈️ ${h.result.destination.city}: ${formatEur(Math.round(t.cost.perPax))}`;
@@ -139,7 +150,8 @@ async function main() {
 
   const file: FaresFile = {
     version: 1,
-    generatedAt: now.toISOString(),
+    generatedAt: flashOnly && previous.generatedAt ? previous.generatedAt : now.toISOString(),
+    flashUpdatedAt: now.toISOString(),
     sources,
     trips,
     destinations: extra,

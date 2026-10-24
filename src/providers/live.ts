@@ -18,6 +18,8 @@ export interface SourceStatus {
 export interface FaresFile {
   version: 1;
   generatedAt: string;
+  /** Ultimo aggiornamento del blocco Flash (gira ogni ora). */
+  flashUpdatedAt?: string;
   sources: Record<string, SourceStatus>;
   trips: TripOption[];
   /** Mete trovate dalle fonti live che non sono nel catalogo. */
@@ -83,11 +85,10 @@ export const liveProvider: FlightProvider = {
 
   describe() {
     if (!loaded) return null;
-    const at = new Date(loaded.generatedAt).toLocaleString('it-IT', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
-    const sources = Object.entries(loaded.sources)
-      .map(([name, s]) => (s.ok ? `${name} ✓` : `${name} ✗`))
-      .join(' · ');
-    return `Prezzi reali aggiornati ${at} (ogni 3 ore) · ${sources}`;
+    const time = (iso: string) => new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const flash = loaded.flashUpdatedAt ? ` · Flash alle ${time(loaded.flashUpdatedAt)}` : '';
+    const failed = Object.entries(loaded.sources).filter(([, s]) => !s.ok).map(([name]) => name);
+    return `Aggiornati alle ${time(loaded.generatedAt)}${flash}${failed.length ? ` · non disponibile: ${failed.join(', ')}` : ''}`;
   },
 };
 
