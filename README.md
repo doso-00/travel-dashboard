@@ -3,9 +3,7 @@
 Dashboard per trovare i voli più convenienti in partenza da **Malpensa (MXP)**, **Bergamo (BGY)** e **Linate (LIN)**,
 divisi in blocchi per tipo di viaggio e ordinati per prezzo.
 
-Online: **https://raw.githack.com/doso-00/travel-dashboard/gh-pages/index.html** (serve il branch `gh-pages`
-così com'è, senza configurazioni). Per l'indirizzo ufficiale https://doso-00.github.io/travel-dashboard/ basta attivare
-una volta GitHub Pages: Settings → Pages → Source "Deploy from a branch" → `gh-pages` / root.
+Online: **https://doso-00.github.io/travel-dashboard/** (GitHub Pages dal branch `gh-pages`, aggiornato ogni 3 ore).
 
 ```bash
 npm install
