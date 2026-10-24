@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 concurrency:
   group: update-fares
@@ -52,3 +53,22 @@ jobs:
           publish_dir: ./dist
           force_orphan: true
           commit_message: Aggiorna prezzi
+
+      # Attiva GitHub Pages sul branch gh-pages se non è già attivo (può richiedere
+      # i permessi di amministratore: in quel caso resta il link raw.githack.com).
+      - name: Attiva GitHub Pages
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/${{ github.repository }}/pages" --silent 2>/dev/null && echo "Pages già attivo" && exit 0
+          gh api -X POST "repos/${{ github.repository }}/pages" -f "source[branch]=gh-pages" -f "source[path]=/" && echo "Pages attivato"
+
+      - name: Indirizzi della dashboard
+        continue-on-error: true
+        run: |
+          for url in "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" \
+                     "https://raw.githack.com/${{ github.repository }}/gh-pages/index.html" \
+                     "https://raw.githack.com/${{ github.repository }}/gh-pages/data/fares.json"; do
+            echo "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$url") $url"
+          done

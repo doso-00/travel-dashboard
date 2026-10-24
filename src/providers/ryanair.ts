@@ -25,7 +25,28 @@ interface FareResponse {
   fares?: { outbound: FareLeg; inbound: FareLeg }[];
 }
 
-function toFlight(leg: FareLeg, terminal?: string): Flight {
+// Differenza di fuso rispetto all'Italia (ora invernale) per le mete fuori catalogo.
+const TZ_BY_COUNTRY: Record<string, number> = {
+  gb: -1, ie: -1, pt: -1, is: -1,
+  gr: 1, ro: 1, bg: 1, fi: 1, ee: 1, lv: 1, lt: 1, cy: 1, il: 1, jo: 1, ua: 1, md: 1,
+  tr: 2,
+};
+const CANARIES = ['LPA', 'ACE', 'TFS', 'TFN', 'FUE', 'SPC'];
+
+function tzOf(leg: FareLeg): number {
+  const known = destinationForAirport(leg.arrivalAirport.iataCode);
+  if (known) return known.tz;
+  if (CANARIES.includes(leg.arrivalAirport.iataCode)) return -1;
+  return TZ_BY_COUNTRY[leg.arrivalAirport.city?.countryCode?.toLowerCase() ?? ''] ?? 0;
+}
+
+function cleanName(name: string): string {
+  const trimmed = name.trim();
+  return trimmed === trimmed.toUpperCase() ? trimmed.charAt(0) + trimmed.slice(1).toLowerCase() : trimmed;
+}
+
+/** `tzShift`: minuti da togliere alla differenza tra orari locali per avere la durata vera. */
+function toFlight(leg: FareLeg, tzShift: number, terminal?: string): Flight {
   const departure = leg.departureDate.slice(0, 16);
   const arrival = leg.arrivalDate.slice(0, 16);
   return {
@@ -35,8 +56,8 @@ function toFlight(leg: FareLeg, terminal?: string): Flight {
     to: leg.arrivalAirport.iataCode,
     departure,
     arrival,
-    // Gli orari sono locali: la durata reale non è nota, è una stima senza fuso.
-    durationMin: Math.max(30, minutesBetween(departure, arrival)),
+    // Gli orari sono locali: si corregge con la differenza di fuso.
+    durationMin: Math.max(30, minutesBetween(departure, arrival) - tzShift),
     terminal,
     fare: leg.price.value,
   };
@@ -48,11 +69,11 @@ function destinationCode(leg: FareLeg): string {
   const iata = leg.arrivalAirport.iataCode;
   registerDestination({
     code: iata,
-    city: leg.arrivalAirport.city?.name ?? leg.arrivalAirport.name ?? iata,
+    city: cleanName(leg.arrivalAirport.city?.name ?? leg.arrivalAirport.name ?? iata),
     country: leg.arrivalAirport.countryName ?? '',
     flag: leg.arrivalAirport.city?.countryCode ? flagOf(leg.arrivalAirport.city.countryCode) : '✈️',
     airports: { [iata]: leg.arrivalAirport.name ?? iata },
-    tz: 0,
+    tz: tzOf(leg),
     distanceKm: 1500,
     baseFare: 40,
     tags: [],
@@ -135,11 +156,13 @@ export const createRyanairProvider = (baseUrl = 'https://services-api.ryanair.co
         else if (mode === 'weekend' && ctx.afterWork && weekday(group[0].out) === 5) timeFrom = '17:00';
         const data = await fetchGroup(baseUrl, origin, group, timeFrom);
         return (data.fares ?? []).map((f): TripOption => {
-          const outbound = toFlight(f.outbound, origin === 'MXP' ? 'T1' : undefined);
-          const inbound = toFlight(f.inbound);
+          const tz = tzOf(f.outbound) * 60;
+          const outbound = toFlight(f.outbound, tz, origin === 'MXP' ? 'T1' : undefined);
+          const inbound = toFlight(f.inbound, -tz);
           const destination = destinationCode(f.outbound);
           return {
-            id: `${mode}:${destination}:${origin}:FR:${outbound.departure.slice(0, 10)}:${inbound.departure.slice(0, 10)}`,
+            // Orari completi nell'id: per il Flash servono più voli nello stesso giorno.
+            id: `${mode}:${destination}:${origin}:FR:${outbound.departure}:${inbound.departure}`,
             mode,
             destination,
             origin,
