@@ -1,0 +1,19 @@
+{
+  "name": "Partenze Milano",
+  "short_name": "Partenze",
+  "description": "Voli più economici da Malpensa, Bergamo e Linate: flash, weekend, weekend lungo e settimana.",
+  "lang": "it",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16212c",
+  "theme_color": "#16212c",
+  "categories": ["travel"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
